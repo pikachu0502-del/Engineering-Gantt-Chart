@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-e40f492f-b638-4e8e-8997-be8b13febb82/styles.css">
+<script src="_ds/nocturne-e40f492f-b638-4e8e-8997-be8b13febb82/_ds_bundle.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  /* 白底黑字：把 Nocturne 的色階翻成淺色版，元件與 var() 用法不變 */
+  :root, body {
+    --color-bg:#fbfbfd; --color-surface:#f2f3f8; --color-text:#1b1d25;
+    --color-divider:rgba(27,29,37,0.18); --color-accent:#6455a8;
+    --color-neutral-100:#101118; --color-neutral-200:#1b1d25; --color-neutral-300:#343742;
+    --color-neutral-400:#4b4e5b; --color-neutral-500:#5f6371; --color-neutral-600:#6e7280;
+    --color-neutral-700:#b9bdc9; --color-neutral-800:#dee1eb; --color-neutral-900:#edeff6;
+    --color-accent-100:#221d3a; --color-accent-200:#3a3260; --color-accent-300:#4f4581;
+    --color-accent-400:#6455a8; --color-accent-500:#7a6dcc; --color-accent-600:#9c92de;
+    --color-accent-700:#c3bcee; --color-accent-800:#e2def9; --color-accent-900:#f2f0fd;
+    --shadow-sm:0 0 0 1px #dee1eb; --shadow-md:0 0 0 1px #dee1eb, 0 6px 18px rgba(27,29,37,0.10);
+  }
+  html, body { margin:0; background:var(--color-bg); color:var(--color-text);
+    font-family:"Inter","Noto Sans TC",system-ui,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:var(--color-accent-300); text-decoration:none; }
+  a:hover { color:var(--color-accent-200); }
+  input, button, select { font-family:inherit; }
+  input:focus-visible, button:focus-visible { outline:2px solid var(--color-accent); outline-offset:2px; }
+  ::selection { background:var(--color-accent-800); }
+  /* density modifiers on the system's own components — this tool is a 34px-row grid */
+  .btn.gt-sm { min-height:0; padding:5px 10px; font-size:12.5px; white-space:nowrap; }
+  .btn.gt-ib { min-height:0; width:22px; height:22px; padding:0; font-size:12px; border-color:transparent; }
+  .seg-opt.gt-sm { padding:4px 12px; font-size:12.5px; }
+  .input.gt-cell { min-height:0; padding:3px 5px; font-size:12.5px; border-color:transparent; background:transparent; border-radius:4px; }
+  .input.gt-cell:hover { border-color:var(--color-neutral-800); }
+  .input.gt-cell:focus-visible { background:var(--color-neutral-900); }
+  .gt-bar { cursor:grab; }
+  .gt-bar:active { cursor:grabbing; }
+  input[type=date]::-webkit-calendar-picker-indicator { cursor:pointer; opacity:.55; }
+</style>
+</helmet>
+
+<div style="height:100vh; display:flex; flex-direction:column; background:var(--color-bg); overflow:hidden">
+
+  <header style="display:flex; align-items:center; gap:var(--space-6); padding:var(--space-4) var(--space-8); border-bottom:1px solid var(--color-neutral-900); flex:none; flex-wrap:wrap">
+    <div style="display:flex; align-items:baseline; gap:10px; min-width:0">
+      <span style="width:9px; height:9px; border-radius:2px; background:var(--color-accent); display:inline-block"></span>
+      <h1 style="font-size:15px; font-weight:500; margin:0; letter-spacing:.02em; white-space:nowrap">工程甘特圖</h1>
+      <input class="input gt-cell" value="{{ title }}" onChange="{{ onTitle }}" style="width:220px; font-size:12.5px; color:var(--color-neutral-400)">
+    </div>
+
+    <span class="tag tag-accent" title="{{ syncTip }}" style="flex:none; max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block">{{ syncLabel }}</span>
+
+    <div class="seg" style="flex:none">
+      <label class="seg-opt gt-sm"><input type="radio" name="gt-scale" checked="{{ isDay }}" onChange="{{ setDay }}" style="position:absolute; opacity:0; width:0; height:0">日</label>
+      <label class="seg-opt gt-sm"><input type="radio" name="gt-scale" checked="{{ isWeek }}" onChange="{{ setWeek }}" style="position:absolute; opacity:0; width:0; height:0">週</label>
+      <label class="seg-opt gt-sm"><input type="radio" name="gt-scale" checked="{{ isMonth }}" onChange="{{ setMonth }}" style="position:absolute; opacity:0; width:0; height:0">月</label>
+    </div>
+
+    <div class="seg" style="flex:none">
+      <label class="seg-opt gt-sm"><input type="radio" name="gt-view" checked="{{ isFlat }}" onChange="{{ setFlat }}" style="position:absolute; opacity:0; width:0; height:0">依項次</label>
+      <label class="seg-opt gt-sm"><input type="radio" name="gt-view" checked="{{ isZoned }}" onChange="{{ setZoned }}" style="position:absolute; opacity:0; width:0; height:0">依工區</label>
+    </div>
+
+    <div style="display:flex; gap:var(--space-2); margin-left:auto; flex-wrap:wrap; justify-content:flex-end">
+      <button class="btn btn-primary gt-sm" onClick="{{ addTask }}">＋ 新增工項</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ addMilestone }}">◆ 里程碑</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ importCsv }}">匯入 CSV</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ exportCsv }}">匯出 CSV</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ exportPng }}">匯出 PNG</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ exportPdf }}">列印 / PDF</button>
+      <button class="btn btn-secondary gt-sm" onClick="{{ share }}">共用連結</button>
+    </div>
+  </header>
+
+  <div style="display:flex; align-items:center; gap:var(--space-6); padding:6px var(--space-8); border-bottom:1px solid var(--color-neutral-900); font-size:11.5px; color:var(--color-neutral-500); flex:none">
+    <span style="display:flex; align-items:center; gap:6px"><span style="width:22px; height:8px; border-radius:3px; background:var(--color-neutral-600); display:inline-block"></span>一般工項</span>
+    <span style="display:flex; align-items:center; gap:6px"><span style="width:22px; height:8px; border-radius:3px; background:var(--color-accent-500); display:inline-block"></span>要徑 Critical Path</span>
+    <span style="display:flex; align-items:center; gap:6px"><span style="width:9px; height:9px; background:var(--color-accent-300); display:inline-block; transform:rotate(45deg)"></span>里程碑</span>
+    <span style="display:flex; align-items:center; gap:6px"><span style="width:22px; height:5px; border-radius:2px; background:var(--color-accent-700); display:inline-block"></span>工區小計</span>
+    <span style="margin-left:auto">{{ summary }}</span>
+  </div>
+
+  <div ref="{{ scrollRef }}" style="flex:1; overflow:auto; position:relative">
+    <div style="display:flex; align-items:flex-start; min-width:max-content">
+
+      <div style="position:sticky; left:0; z-index:3; background:var(--color-bg); border-right:1px solid var(--color-neutral-800); flex:none; width:688px">
+        <div style="position:sticky; top:0; z-index:4; background:var(--color-bg); display:flex; align-items:center; height:52px; border-bottom:1px solid var(--color-neutral-800); font-size:11px; color:var(--color-neutral-500); letter-spacing:.06em; padding:0 var(--space-3)">
+          <span style="width:26px; flex:none">#</span>
+          <span style="flex:1; min-width:0">工項名稱</span>
+          <span style="width:84px; flex:none">工區</span>
+          <span style="width:92px; flex:none">工作面</span>
+          <span style="width:60px; flex:none; text-align:center">工進</span>
+          <span style="width:112px; flex:none">開始日期</span>
+          <span style="width:48px; flex:none; text-align:right">工期</span>
+          <span style="width:58px; flex:none; text-align:center">前置</span>
+          <span style="width:46px; flex:none"></span>
+        </div>
+
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+          <div style="display:flex; align-items:center; height:34px; padding:0 var(--space-3); border-bottom:1px solid var(--color-neutral-900); background:{{ r.rowBg }}">
+            <sc-if value="{{ r.isGroup }}" hint-placeholder-val="{{ false }}">
+              <span style="display:flex; align-items:center; gap:8px; width:100%; min-width:0">
+                <span style="width:3px; height:18px; border-radius:2px; background:var(--color-accent); flex:none"></span>
+                <span style="font-size:12.5px; color:var(--color-accent-200); letter-spacing:.04em; white-space:nowrap">{{ r.zoneName }}</span>
+                <span class="tag tag-neutral">{{ r.zoneCount }}</span>
+                <span style="margin-left:auto; font-size:11.5px; color:var(--color-neutral-400); font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.zoneMeta }}</span>
+              </span>
+            </sc-if>
+            <sc-if value="{{ r.isTask }}" hint-placeholder-val="{{ true }}">
+            <span style="display:flex; align-items:center; width:100%; min-width:0">
+            <span style="width:26px; flex:none; font-size:11px; color:var(--color-neutral-600); font-variant-numeric:tabular-nums">{{ r.no }}</span>
+            <span style="flex:1; min-width:0; display:flex; align-items:center; gap:5px">
+              <span style="width:3px; height:16px; border-radius:2px; flex:none; background:{{ r.mark }}"></span>
+              <input class="input gt-cell" value="{{ r.name }}" onChange="{{ r.onName }}">
+            </span>
+            <span style="width:84px; flex:none"><input class="input gt-cell" value="{{ r.zone }}" onChange="{{ r.onZone }}" placeholder="—" style="color:var(--color-accent-300)"></span>
+            <span style="width:92px; flex:none"><input class="input gt-cell" value="{{ r.face }}" onChange="{{ r.onFace }}" placeholder="—" style="color:var(--color-neutral-300)"></span>
+            <span style="width:60px; flex:none; display:flex; align-items:center; gap:3px">
+              <input class="input gt-cell" type="number" min="0" max="100" value="{{ r.progress }}" onChange="{{ r.onProgress }}" style="text-align:right; padding-right:2px">
+              <span style="font-size:10.5px; color:var(--color-neutral-600); flex:none">%</span>
+            </span>
+            <span style="width:112px; flex:none"><input class="input gt-cell" type="date" value="{{ r.start }}" onChange="{{ r.onStart }}" style="font-variant-numeric:tabular-nums"></span>
+            <span style="width:48px; flex:none"><input class="input gt-cell" type="number" min="0" value="{{ r.days }}" onChange="{{ r.onDays }}" style="text-align:right" disabled="{{ r.milestone }}"></span>
+            <span style="width:58px; flex:none"><input class="input gt-cell" value="{{ r.depsStr }}" onChange="{{ r.onDeps }}" placeholder="—" style="text-align:center; color:var(--color-neutral-400)"></span>
+            <span style="width:46px; flex:none; display:flex; gap:3px; justify-content:flex-end">
+              <button class="btn btn-ghost gt-ib" onClick="{{ r.onFlag }}" title="切換里程碑" style="color:{{ r.flagColor }}">◆</button>
+              <button class="btn btn-ghost gt-ib" onClick="{{ r.onDelete }}" title="刪除">✕</button>
+            </span>
+            </span>
+            </sc-if>
+          </div>
+        </sc-for>
+
+        <div style="height:34px; display:flex; align-items:center; padding:0 var(--space-3); font-size:11.5px; color:var(--color-neutral-700)">在右側空白列拖曳即可畫出新工項 →</div>
+      </div>
+
+      <div style="flex:none; position:relative">
+        <div style="position:sticky; top:0; z-index:2; background:var(--color-bg); border-bottom:1px solid var(--color-neutral-800); height:52px; width:{{ chartW }}px; position:relative">
+          <sc-for list="{{ topCells }}" as="c" hint-placeholder-count="3">
+            <div style="position:absolute; top:0; height:26px; display:flex; align-items:center; padding-left:8px; font-size:11px; letter-spacing:.05em; color:var(--color-neutral-400); border-left:1px solid var(--color-neutral-800); box-sizing:border-box; overflow:hidden; white-space:nowrap; left:{{ c.left }}px; width:{{ c.width }}px">{{ c.label }}</div>
+          </sc-for>
+          <sc-for list="{{ botCells }}" as="c" hint-placeholder-count="14">
+            <div style="position:absolute; top:26px; height:26px; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-variant-numeric:tabular-nums; box-sizing:border-box; overflow:hidden; border-left:1px solid var(--color-neutral-900); left:{{ c.left }}px; width:{{ c.width }}px; color:{{ c.color }}; background:{{ c.bg }}">{{ c.label }}</div>
+          </sc-for>
+        </div>
+
+        <div ref="{{ gridRef }}" onMouseDown="{{ onGridDown }}" style="position:relative; width:{{ chartW }}px; height:{{ chartH }}px">
+          <sc-for list="{{ botCells }}" as="c" hint-placeholder-count="14">
+            <div style="position:absolute; top:0; bottom:0; width:1px; background:{{ c.line }}; left:{{ c.left }}px"></div>
+          </sc-for>
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+            <div style="position:absolute; left:0; right:0; height:34px; border-bottom:1px solid var(--color-neutral-900); top:{{ r.top }}px; background:{{ r.rowBg }}"></div>
+          </sc-for>
+
+          <div style="position:absolute; top:0; bottom:0; width:1px; background:var(--color-accent-400); opacity:.75; left:{{ todayX }}px"></div>
+
+          <svg width="{{ chartW }}" height="{{ chartH }}" style="position:absolute; inset:0; pointer-events:none; overflow:visible">
+            <sc-for list="{{ arrows }}" as="a" hint-placeholder-count="4">
+              <path d="{{ a.d }}" fill="none" stroke="{{ a.color }}" stroke-width="1.25"></path>
+            </sc-for>
+            <sc-for list="{{ arrows }}" as="a" hint-placeholder-count="4">
+              <polygon points="{{ a.head }}" fill="{{ a.color }}"></polygon>
+            </sc-for>
+          </svg>
+
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+            <div style="position:absolute; height:34px; display:flex; align-items:center; top:{{ r.top }}px; left:{{ r.left }}px">
+              <sc-if value="{{ r.isGroup }}" hint-placeholder-val="{{ false }}">
+                <div title="{{ r.tip }}" style="position:relative; height:9px; border-radius:3px; background:var(--color-accent-800); box-shadow:0 0 0 1px var(--color-accent-700); width:{{ r.width }}px">
+                  <div style="position:absolute; left:0; top:0; bottom:0; border-radius:3px; background:var(--color-accent-600); width:{{ r.progW }}px"></div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ r.milestone }}" hint-placeholder-val="{{ false }}">
+                <div class="gt-bar" onMouseDown="{{ r.onMove }}" title="{{ r.tip }}" style="width:15px; height:15px; transform:rotate(45deg); border-radius:2px; background:{{ r.color }}; box-shadow:{{ r.glow }}"></div>
+              </sc-if>
+              <sc-if value="{{ r.isBar }}" hint-placeholder-val="{{ true }}">
+                <div class="gt-bar" onMouseDown="{{ r.onMove }}" title="{{ r.tip }}" style="position:relative; height:17px; border-radius:5px; display:flex; align-items:center; width:{{ r.width }}px; background:{{ r.color }}; box-shadow:{{ r.glow }}">
+                  <div style="position:absolute; left:0; top:0; bottom:0; border-radius:5px 0 0 5px; background:var(--color-accent-200); opacity:.85; pointer-events:none; width:{{ r.progW }}px"></div>
+                  <div onMouseDown="{{ r.onResizeL }}" style="position:absolute; left:0; top:0; bottom:0; width:7px; cursor:ew-resize; border-radius:5px 0 0 5px"></div>
+                  <div onMouseDown="{{ r.onResizeR }}" style="position:absolute; right:0; top:0; bottom:0; width:7px; cursor:ew-resize; border-radius:0 5px 5px 0"></div>
+                </div>
+              </sc-if>
+              <span style="margin-left:8px; font-size:11.5px; white-space:nowrap; pointer-events:none; color:{{ r.labelColor }}">{{ r.barLabel }}</span>
+            </div>
+          </sc-for>
+
+          <div style="position:absolute; height:17px; border-radius:5px; border:1px dashed var(--color-accent-400); background:color-mix(in srgb, var(--color-accent) 18%, transparent); pointer-events:none; display:{{ ghostShow }}; top:{{ ghostTop }}px; left:{{ ghostLeft }}px; width:{{ ghostW }}px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input ref="{{ fileRef }}" type="file" accept=".csv,text/csv" onChange="{{ onFile }}" style="display:none">
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const DAY = 86400000;
+const ROW = 34;
+const PX = { day: 34, week: 11.5, month: 3.8 };
+
+class Component extends DCLogic {
+  state = {
+    title: "示範工程 — 進度網圖",
+    scale: "day",
+    view: "flat",
+    tasks: [],
+    ghost: null,
+  };
+
+  // display list: flat task rows, or zone group rows with their tasks under them
+  dispList(m) {
+    const out = [];
+    if (this.state.view === "zone") {
+      const order = [], map = {};
+      m.tasks.forEach(t => {
+        const z = String(t.zone || "").trim() || "未分區";
+        if (!map[z]) { map[z] = []; order.push(z); }
+        map[z].push(t);
+      });
+      order.forEach(z => { out.push({ kind: "g", zone: z, list: map[z] }); map[z].forEach(t => out.push({ kind: "t", t: t })); });
+    } else m.tasks.forEach(t => out.push({ kind: "t", t: t }));
+    return out;
+  }
+
+  // weighted rollup for a set of tasks
+  roll(list) {
+    let s = Infinity, e = -Infinity, w = 0, p = 0;
+    list.forEach(t => {
+      const st = this.s2d(t.start), en = st + Math.max(t.days, 0) * DAY;
+      s = Math.min(s, st); e = Math.max(e, en);
+      w += Math.max(t.days, 0); p += Math.max(t.days, 0) * Math.max(0, Math.min(100, t.progress || 0));
+    });
+    return { start: s, end: e, days: Math.round((e - s) / DAY), progress: w ? Math.round(p / w) : 0 };
+  }
+
+  // ---- date helpers ----
+  s2d(s) { const p = String(s).split("-").map(Number); return Date.UTC(p[0], p[1] - 1, p[2]); }
+  d2s(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  md(ms) { const d = new Date(ms); return (d.getUTCMonth() + 1) + "/" + d.getUTCDate(); }
+
+  seed() {
+    const base = this.s2d(this.d2s(Date.now() - 10 * DAY));
+    const raw = [
+      ["假設工程與工地整備", 8, [], "全區", 100, "共同項目"],
+      ["基地整地／點交", 5, [1], "全區", 100, "共同項目"],
+      ["擋土支撐安裝", 10, [2], "A 區", 80, "A 工區"],
+      ["開挖及土方外運", 14, [3], "A 區", 45, "A 工區"],
+      ["基礎與筏基澆置", 12, [4], "A 區", 0, "A 工區"],
+      ["地下室結構體", 18, [5], "B1–B3", 0, "A 工區"],
+      ["地上層結構體", 30, [6], "1F–12F", 0, "B 工區"],
+      ["結構體完成", 0, [7], "全區", 0, "B 工區"],
+      ["外牆帷幕與門窗", 20, [7], "外立面", 0, "B 工區"],
+      ["機電幹管配管", 22, [6], "B1–B3", 0, "機電工區"],
+      ["室內裝修工程", 24, [9], "1F–12F", 0, "機電工區"],
+      ["消防與電梯試車", 10, [10], "全區", 0, "機電工區"],
+      ["清潔與缺失改善", 8, [11], "全區", 0, "共同項目"],
+      ["竣工查驗", 0, [12, 13], "全區", 0, "共同項目"],
+    ];
+    const out = []; let cursor = base;
+    raw.forEach((r, i) => {
+      const deps = r[2].map(n => "t" + n);
+      let st = cursor;
+      deps.forEach(d => { const p = out.find(o => o.id === d); if (p) st = Math.max(st, this.s2d(p.start) + p.days * DAY); });
+      out.push({ id: "t" + (i + 1), name: r[0], zone: r[5], face: r[3], progress: r[4], start: this.d2s(st), days: r[1], deps: deps, milestone: r[1] === 0 });
+      cursor = base;
+    });
+    return out;
+  }
+
+  componentDidMount() {
+    this.clientId = Math.random().toString(36).slice(2, 10);
+    let tasks = null;
+    try {
+      const h = location.hash.match(/^#g=(.+)$/);
+      if (h) tasks = JSON.parse(decodeURIComponent(atob(h[1])));
+      else { const s = localStorage.getItem("gantt-tc-v1"); if (s) tasks = JSON.parse(s); }
+    } catch (e) { tasks = null; }
+    if (tasks && tasks.tasks) { this.setState({ tasks: tasks.tasks, title: tasks.title || this.state.title }); }
+    else this.setState({ tasks: this.seed() });
+    this._mm = e => this.onMove(e); this._mu = e => this.onUp(e);
+    window.addEventListener("mousemove", this._mm); window.addEventListener("mouseup", this._mu);
+    this.initSync();
+  }
+  componentWillUnmount() {
+    window.removeEventListener("mousemove", this._mm); window.removeEventListener("mouseup", this._mu);
+    if (this.presenceRef) this.presenceRef.remove();
+    if (this.docRef) this.docRef.off();
+  }
+  componentDidUpdate() {
+    if (!this.state.tasks.length) return;
+    try { localStorage.setItem("gantt-tc-v1", JSON.stringify({ title: this.state.title, tasks: this.state.tasks })); } catch (e) {}
+    if (this._fromRemote) { this._fromRemote = false; return; }
+    this.push();
+  }
+
+  // ---- Firebase Realtime Database：同房號即時協作 ----
+  initSync(n) {
+    if (!window.firebase || !firebase.database) {
+      if ((n || 0) > 30) return this.setState({ sync: "off" });
+      return setTimeout(() => this.initSync((n || 0) + 1), 300);
+    }
+    try {
+      if (!firebase.apps.length) firebase.initializeApp({
+        apiKey: "AIzaSyCAVM24doMGu3jzZiikdjaSUS1Zz8W43hw",
+        authDomain: "engineering-gantt-chart.firebaseapp.com",
+        databaseURL: "https://engineering-gantt-chart-default-rtdb.firebaseio.com",
+        projectId: "engineering-gantt-chart",
+        storageBucket: "engineering-gantt-chart.firebasestorage.app",
+        messagingSenderId: "841300096411",
+        appId: "1:841300096411:web:5538cf8c8c32bfba6e9d3e",
+      });
+      const db = firebase.database();
+      const hit = location.hash.match(/r=([A-Za-z0-9_-]+)/);
+      this.room = hit ? hit[1] : Math.random().toString(36).slice(2, 8).toUpperCase();
+      if (!hit) { try { history.replaceState(null, "", location.pathname + location.search + "#r=" + this.room); } catch (e) {} }
+      this.docRef = db.ref("gantt/" + this.room + "/doc");
+      this.docRef.on("value", snap => {
+        const v = snap.val();
+        this.setState({ sync: "live" });
+        if (!v) { this.push(true); return; }
+        if (v.by === this.clientId) return;
+        this._fromRemote = true;
+        this.setState({ tasks: v.tasks || [], title: v.title || this.state.title });
+      }, () => this.setState({ sync: "off" }));
+      this.presenceRef = db.ref("gantt/" + this.room + "/presence/" + this.clientId);
+      this.presenceRef.set(Date.now());
+      this.presenceRef.onDisconnect().remove();
+      db.ref("gantt/" + this.room + "/presence").on("value", s => this.setState({ peers: s.numChildren() }));
+    } catch (e) { this.setState({ sync: "off" }); }
+  }
+  push(now) {
+    if (!this.docRef) return;
+    clearTimeout(this._pt);
+    const send = () => this.docRef.set({
+      title: this.state.title, tasks: this.state.tasks, by: this.clientId, at: Date.now(),
+    }).catch(() => this.setState({ sync: "off" }));
+    if (now) send(); else this._pt = setTimeout(send, 350);
+  }
+
+  setTasks(fn) { this.setState(s => ({ tasks: fn(s.tasks.slice()) })); }
+  patch(id, obj) { this.setTasks(ts => ts.map(t => t.id === id ? Object.assign({}, t, obj) : t)); }
+
+  // ---- model ----
+  model() {
+    const tasks = this.state.tasks;
+    const byId = {}; tasks.forEach(t => byId[t.id] = t);
+    const ef = t => this.s2d(t.start) + Math.max(t.days, 0) * DAY;
+    let min = Infinity, max = -Infinity;
+    tasks.forEach(t => { min = Math.min(min, this.s2d(t.start)); max = Math.max(max, ef(t)); });
+    if (!isFinite(min)) { min = this.s2d(this.d2s(Date.now())); max = min + 30 * DAY; }
+    const succ = {};
+    tasks.forEach(t => (t.deps || []).forEach(d => { if (byId[d]) (succ[d] = succ[d] || []).push(t.id); }));
+    const crit = {};
+    tasks.forEach(t => {
+      const s = succ[t.id];
+      const lf = s && s.length ? Math.min.apply(null, s.map(id => this.s2d(byId[id].start))) : max;
+      crit[t.id] = (lf - ef(t)) < 0.5 * DAY;
+    });
+    const pad = this.state.scale === "day" ? 3 : this.state.scale === "week" ? 7 : 20;
+    const t0 = min - pad * DAY, t1 = max + pad * DAY;
+    return { tasks, byId, ef, min, max, crit, t0, t1 };
+  }
+
+  cols(m, px) {
+    const top = [], bot = [], sc = this.state.scale;
+    const x = ms => (ms - m.t0) / DAY * px;
+    if (sc === "month") {
+      let d = new Date(m.t0); let cur = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+      let yStart = cur, yLabel = new Date(cur).getUTCFullYear();
+      while (cur < m.t1) {
+        const nd = new Date(cur); const nxt = Date.UTC(nd.getUTCFullYear(), nd.getUTCMonth() + 1, 1);
+        bot.push({ left: x(cur), width: (nxt - cur) / DAY * px, label: (nd.getUTCMonth() + 1) + "月", color: "var(--color-neutral-400)", bg: "transparent", line: "var(--color-neutral-900)" });
+        if (nd.getUTCFullYear() !== yLabel) { top.push({ left: x(yStart), width: x(cur) - x(yStart), label: yLabel + " 年" }); yStart = cur; yLabel = nd.getUTCFullYear(); }
+        cur = nxt;
+      }
+      top.push({ left: x(yStart), width: x(cur) - x(yStart), label: yLabel + " 年" });
+    } else {
+      const step = sc === "day" ? 1 : 7;
+      let cur = m.t0;
+      if (sc === "week") { const wd = (new Date(cur).getUTCDay() + 6) % 7; cur -= wd * DAY; }
+      let mStart = cur, mLabel = new Date(cur).getUTCMonth();
+      const today = this.s2d(this.d2s(Date.now()));
+      while (cur < m.t1) {
+        const d = new Date(cur); const dow = d.getUTCDay(); const we = dow === 0 || dow === 6;
+        bot.push({
+          left: x(cur), width: step * px,
+          label: sc === "day" ? String(d.getUTCDate()) : this.md(cur),
+          color: cur === today ? "var(--color-accent-200)" : we ? "var(--color-neutral-700)" : "var(--color-neutral-400)",
+          bg: we && sc === "day" ? "color-mix(in srgb, var(--color-neutral-900) 70%, transparent)" : "transparent",
+          line: we && sc === "day" ? "var(--color-neutral-900)" : "var(--color-neutral-900)",
+        });
+        if (d.getUTCMonth() !== mLabel) {
+          top.push({ left: x(mStart), width: x(cur) - x(mStart), label: new Date(mStart).getUTCFullYear() + " / " + (mLabel + 1) + " 月" });
+          mStart = cur; mLabel = d.getUTCMonth();
+        }
+        cur += step * DAY;
+      }
+      top.push({ left: x(mStart), width: x(cur) - x(mStart), label: new Date(mStart).getUTCFullYear() + " / " + (mLabel + 1) + " 月" });
+    }
+    return { top, bot, width: Math.max(600, x(sc === "month" ? m.t1 + 31 * DAY : m.t1)) };
+  }
+
+  // ---- drag ----
+  startDrag(e, id, mode) {
+    e.preventDefault(); e.stopPropagation();
+    const t = this.state.tasks.find(x => x.id === id);
+    this.drag = { id, mode, x0: e.clientX, start0: this.s2d(t.start), days0: t.days };
+  }
+  onMove(e) {
+    const px = PX[this.state.scale];
+    if (this.drag) {
+      const dd = Math.round((e.clientX - this.drag.x0) / px);
+      const d = this.drag;
+      if (d.mode === "move") this.patch(d.id, { start: this.d2s(d.start0 + dd * DAY) });
+      else if (d.mode === "r") this.patch(d.id, { days: Math.max(1, d.days0 + dd) });
+      else { const nd = Math.max(1, d.days0 - dd); this.patch(d.id, { start: this.d2s(d.start0 + (d.days0 - nd) * DAY), days: nd }); }
+    } else if (this.state.ghost) {
+      const g = this.state.ghost;
+      this.setState({ ghost: Object.assign({}, g, { x1: e.clientX }) });
+    }
+  }
+  onUp() {
+    this.drag = null;
+    const g = this.state.ghost;
+    if (g) {
+      const px = PX[this.state.scale];
+      const a = Math.min(g.x0, g.x1), b = Math.max(g.x0, g.x1);
+      const days = Math.max(1, Math.round((b - a) / px));
+      const start = g.t0 + Math.floor((a - g.originX) / px) * DAY;
+      this.setState({ ghost: null });
+      this.setTasks(ts => ts.concat([{ id: "t" + Date.now(), name: "新工項", start: this.d2s(start), days: days, deps: [], milestone: false }]));
+    }
+  }
+  onGridDown(e) {
+    const m = this.model();
+    const box = this.gridEl.getBoundingClientRect();
+    const n = this._rows == null ? this.state.tasks.length : this._rows;
+    const row = Math.floor((e.clientY - box.top) / ROW);
+    if (row < n) return;
+    this.setState({ ghost: { x0: e.clientX, x1: e.clientX, originX: box.left, t0: m.t0, top: n * ROW } });
+  }
+
+  // ---- actions ----
+  addTask(ms) {
+    const ts = this.state.tasks;
+    const last = ts[ts.length - 1];
+    const start = last ? this.d2s(this.s2d(last.start) + Math.max(last.days, 1) * DAY) : this.d2s(Date.now());
+    this.setTasks(t => t.concat([{ id: "t" + Date.now(), name: ms ? "里程碑" : "新工項", zone: last ? (last.zone || "") : "", face: last ? (last.face || "") : "", progress: 0, start, days: ms ? 0 : 5, deps: last ? [last.id] : [], milestone: !!ms }]));
+  }
+
+  csv() {
+    const ts = this.state.tasks;
+    const no = {}; ts.forEach((t, i) => no[t.id] = i + 1);
+    const rows = [["項次", "工項名稱", "工區", "工作面", "工進(%)", "開始日期", "工期(天)", "前置項次", "里程碑"]];
+    ts.forEach((t, i) => rows.push([i + 1, t.name, t.zone || "", t.face || "", t.progress || 0, t.start, t.days, (t.deps || []).map(d => no[d]).filter(Boolean).join(" "), t.milestone ? "Y" : ""]));
+    return rows.map(r => r.map(c => /[",\n]/.test(String(c)) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(",")).join("\r\n");
+  }
+  download(blob, name) {
+    const u = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href = u; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 3000);
+  }
+  parseCsv(text) {
+    const lines = text.replace(/^\ufeff/, "").split(/\r?\n/).filter(l => l.trim());
+    const out = [];
+    lines.forEach((l, i) => {
+      const c = []; let cur = "", q = false;
+      for (let k = 0; k < l.length; k++) {
+        const ch = l[k];
+        if (q) { if (ch === '"' && l[k + 1] === '"') { cur += '"'; k++; } else if (ch === '"') q = false; else cur += ch; }
+        else if (ch === '"') q = true; else if (ch === ",") { c.push(cur); cur = ""; } else cur += ch;
+      }
+      c.push(cur);
+      if (i === 0 && !/^\d+$/.test(c[0].trim())) return;
+      const days = parseInt(c[6], 10) || 0;
+      out.push({ id: "i" + i + Date.now(), name: c[1] || "工項", zone: (c[2] || "").trim(), face: (c[3] || "").trim(), progress: Math.max(0, Math.min(100, parseInt(c[4], 10) || 0)), start: (c[5] || "").trim(), days, _deps: (c[7] || "").trim(), milestone: /y|是/i.test(c[8] || "") || days === 0 });
+    });
+    out.forEach(t => { t.deps = t._deps ? t._deps.split(/[\s,、]+/).map(n => out[parseInt(n, 10) - 1]).filter(Boolean).map(x => x.id) : []; delete t._deps; });
+    return out.filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t.start));
+  }
+
+  draw() {
+    const m = this.model(), px = PX[this.state.scale], c = this.cols(m, px);
+    const disp = this.dispList(m);
+    const LW = 400, HH = 52, S = 2;
+    const W = LW + c.width, H = HH + Math.max(1, disp.length) * ROW + 24;
+    const cv = document.createElement("canvas");
+    cv.width = W * S; cv.height = H * S;
+    const g = cv.getContext("2d"); g.scale(S, S);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, H);
+    g.font = '500 13px Inter, "Noto Sans TC", sans-serif'; g.fillStyle = "#1b1d25";
+    g.fillText(this.state.title, 12, 22);
+    g.font = '11px Inter, "Noto Sans TC", sans-serif';
+    c.top.forEach(t => { g.fillStyle = "#4b4e5b"; g.fillText(t.label, LW + t.left + 5, 18); });
+    c.bot.forEach(b => {
+      g.fillStyle = "#edeff6"; g.fillRect(LW + b.left, HH, 1, H - HH - 24);
+      if (b.width > 12) { g.fillStyle = "#5f6371"; g.textAlign = "center"; g.fillText(b.label, LW + b.left + b.width / 2, HH - 8); g.textAlign = "left"; }
+    });
+    g.strokeStyle = "#c9cdda"; g.beginPath(); g.moveTo(0, HH); g.lineTo(W, HH); g.stroke();
+    const x = ms => LW + (ms - m.t0) / DAY * px;
+    disp.forEach((d, i) => {
+      const y = HH + i * ROW;
+      g.strokeStyle = "#e7e9f1"; g.beginPath(); g.moveTo(0, y + ROW); g.lineTo(W, y + ROW); g.stroke();
+      if (d.kind === "g") {
+        const r = this.roll(d.list);
+        g.fillStyle = "#f2f0fd"; g.fillRect(0, y, W, ROW);
+        g.fillStyle = "#3a3260"; g.font = '500 12px Inter, "Noto Sans TC", sans-serif';
+        g.fillText(d.zone + "（" + d.list.length + " 項 · 工進 " + r.progress + "%）", 12, y + 22);
+        const gx = x(r.start), gw = Math.max(4, (r.end - r.start) / DAY * px);
+        g.fillStyle = "#e2def9"; g.beginPath(); g.roundRect(gx, y + 13, gw, 9, 3); g.fill();
+        g.fillStyle = "#9c92de"; g.beginPath(); g.roundRect(gx, y + 13, Math.max(2, gw * r.progress / 100), 9, 3); g.fill();
+        return;
+      }
+      const t = d.t;
+      g.fillStyle = "#1b1d25"; g.font = '12px Inter, "Noto Sans TC", sans-serif';
+      g.fillText((m.tasks.indexOf(t) + 1) + ".  " + t.name, 12, y + 22);
+      g.fillStyle = "#5f6371"; g.font = '11px Inter, "Noto Sans TC", sans-serif';
+      g.fillText([t.zone, t.face].filter(Boolean).join(" · "), 230, y + 22);
+      g.textAlign = "right"; g.fillText((t.progress || 0) + "%", LW - 16, y + 22); g.textAlign = "left";
+      const col = m.crit[t.id] ? "#7a6dcc" : "#8b8fa0";
+      const bx = x(this.s2d(t.start));
+      if (t.milestone) { g.save(); g.translate(bx + 7, y + ROW / 2); g.rotate(Math.PI / 4); g.fillStyle = "#4f4581"; g.fillRect(-6, -6, 12, 12); g.restore(); }
+      else {
+        const w = Math.max(3, t.days * px);
+        g.fillStyle = col; g.beginPath(); g.roundRect(bx, y + 8, w, 17, 5); g.fill();
+        const p = Math.max(0, Math.min(100, t.progress || 0));
+        if (p > 0) { g.fillStyle = "#3a3260"; g.beginPath(); g.roundRect(bx, y + 8, Math.max(2, w * p / 100), 17, 5); g.fill(); }
+      }
+    });
+    return cv;
+  }
+
+  renderVals() {
+    const m = this.model(), sc = this.state.scale, px = PX[sc];
+    const c = this.cols(m, px);
+    const x = ms => (ms - m.t0) / DAY * px;
+    const no = {}; m.tasks.forEach((t, i) => no[t.id] = i + 1);
+    const disp = this.dispList(m);
+    this._rows = disp.length;
+    const pos = {}; disp.forEach((d, i) => { if (d.kind === "t") pos[d.t.id] = i; });
+
+    const rows = disp.map((d, di) => {
+      if (d.kind === "g") {
+        const g = this.roll(d.list);
+        const w = Math.max(4, (g.end - g.start) / DAY * px);
+        return {
+          isGroup: true, isTask: false, isBar: false, milestone: false,
+          zoneName: d.zone, zoneCount: d.list.length + " 項",
+          zoneMeta: this.d2s(g.start) + " → " + this.d2s(g.end) + " · " + g.days + " 天 · 工進 " + g.progress + "%",
+          top: di * ROW, left: x(g.start), width: w, progW: Math.round(w * g.progress / 100),
+          rowBg: "color-mix(in srgb, var(--color-accent-900) 55%, transparent)",
+          barLabel: g.progress + "%", labelColor: "var(--color-accent-300)",
+          tip: d.zone + "　" + g.days + " 天　工進 " + g.progress + "%",
+        };
+      }
+      const t = d.t, i = pos[t.id];
+      const critical = m.crit[t.id];
+      const col = t.milestone ? "var(--color-accent-300)" : critical ? "var(--color-accent-500)" : "var(--color-neutral-600)";
+      const prog = Math.max(0, Math.min(100, t.progress || 0));
+      const barW = Math.max(4, t.days * px);
+      return {
+        id: t.id, isGroup: false, isTask: true, no: m.tasks.indexOf(t) + 1, name: t.name, start: t.start, days: t.days, milestone: !!t.milestone,
+        face: t.face || "", zone: t.zone || "", progress: prog, progW: Math.round(barW * prog / 100),
+        onZone: e => this.patch(t.id, { zone: e.target.value }),
+        onFace: e => this.patch(t.id, { face: e.target.value }),
+        onProgress: e => this.patch(t.id, { progress: Math.max(0, Math.min(100, parseInt(e.target.value, 10) || 0)) }),
+        isBar: !t.milestone,
+        depsStr: (t.deps || []).map(d => no[d]).filter(Boolean).join(","),
+        top: i * ROW, left: x(this.s2d(t.start)), width: barW,
+        color: col, glow: critical && !t.milestone ? "0 0 0 1px var(--color-accent-400)" : "none",
+        mark: critical ? "var(--color-accent-600)" : "transparent",
+        rowBg: "transparent",
+        labelColor: critical ? "var(--color-accent-200)" : "var(--color-neutral-500)",
+        barLabel: t.milestone ? t.name : (t.days + " 天" + (prog ? " · " + prog + "%" : "") + (t.face ? " · " + t.face : "")),
+        flagColor: t.milestone ? "var(--color-accent-300)" : "var(--color-neutral-700)",
+        tip: t.name + "　" + (t.face ? t.face + "　" : "") + t.start + "　" + t.days + " 天　工進 " + prog + "%" + (critical ? "　(要徑)" : ""),
+        onName: e => this.patch(t.id, { name: e.target.value }),
+        onStart: e => { if (e.target.value) this.patch(t.id, { start: e.target.value }); },
+        onDays: e => this.patch(t.id, { days: Math.max(0, parseInt(e.target.value, 10) || 0) }),
+        onDeps: e => {
+          const ids = e.target.value.split(/[^\d]+/).filter(Boolean)
+            .map(n => m.tasks[parseInt(n, 10) - 1]).filter(p => p && p.id !== t.id).map(p => p.id);
+          this.patch(t.id, { deps: ids });
+        },
+        onFlag: () => this.patch(t.id, { milestone: !t.milestone, days: t.milestone ? Math.max(1, t.days) : 0 }),
+        onDelete: () => this.setTasks(ts => ts.filter(o => o.id !== t.id).map(o => Object.assign({}, o, { deps: (o.deps || []).filter(d => d !== t.id) }))),
+        onMove: e => this.startDrag(e, t.id, "move"),
+        onResizeL: e => this.startDrag(e, t.id, "l"),
+        onResizeR: e => this.startDrag(e, t.id, "r"),
+      };
+    });
+
+    const arrows = [];
+    m.tasks.forEach(t => (t.deps || []).forEach(d => {
+      const p = m.byId[d]; if (!p) return;
+      const i = pos[t.id], j = pos[d];
+      if (i == null || j == null) return;
+      const x1 = x(this.s2d(p.start)) + (p.milestone ? 15 : Math.max(4, p.days * px));
+      const y1 = j * ROW + ROW / 2;
+      const x2 = x(this.s2d(t.start)), y2 = i * ROW + ROW / 2;
+      const critical = m.crit[t.id] && m.crit[d];
+      const gap = 9;
+      const dpath = x2 - x1 > 16
+        ? "M" + x1 + " " + y1 + " H" + (x2 - gap) + " V" + y2 + " H" + (x2 - 3)
+        : "M" + x1 + " " + y1 + " h8 V" + (y2 - (y2 > y1 ? ROW / 2 : -ROW / 2)) + " H" + (x2 - gap) + " V" + y2 + " H" + (x2 - 3);
+      arrows.push({
+        d: dpath, color: critical ? "var(--color-accent-500)" : "var(--color-neutral-700)",
+        head: (x2 - 3) + "," + y2 + " " + (x2 - 9) + "," + (y2 - 3.5) + " " + (x2 - 9) + "," + (y2 + 3.5),
+      });
+    }));
+
+    const g = this.state.ghost;
+    const total = m.tasks.length ? Math.round((m.max - m.min) / DAY) : 0;
+    const critCount = m.tasks.filter(t => m.crit[t.id]).length;
+    const zoneCount = Object.keys(m.tasks.reduce((a, t) => { a[String(t.zone || "").trim() || "未分區"] = 1; return a; }, {})).length;
+    const wsum = m.tasks.reduce((a, t) => a + Math.max(t.days, 0), 0);
+    const overall = wsum ? Math.round(m.tasks.reduce((a, t) => a + Math.max(t.days, 0) * (t.progress || 0), 0) / wsum) : 0;
+
+    return {
+      title: this.state.title,
+      onTitle: e => this.setState({ title: e.target.value }),
+      rows, arrows,
+      topCells: c.top, botCells: c.bot,
+      chartW: Math.round(c.width), chartH: Math.max(1, disp.length + 1) * ROW,
+      isDay: sc === "day", isWeek: sc === "week", isMonth: sc === "month",
+      isFlat: this.state.view === "flat", isZoned: this.state.view === "zone",
+      setFlat: () => this.setState({ view: "flat" }), setZoned: () => this.setState({ view: "zone" }),
+      todayX: x(this.s2d(this.d2s(Date.now()))),
+      summary: m.tasks.length + " 項工項 · " + zoneCount + " 個工區 · 總工期 " + total + " 天 · 要徑 " + critCount + " 項 · 總工進 " + overall + "% · " + (m.tasks.length ? this.d2s(m.min) + " → " + this.d2s(m.max) : ""),
+      setDay: () => this.setState({ scale: "day" }), setWeek: () => this.setState({ scale: "week" }), setMonth: () => this.setState({ scale: "month" }),
+      addTask: () => this.addTask(false), addMilestone: () => this.addTask(true),
+      gridRef: el => { if (el) this.gridEl = el; },
+      scrollRef: el => { if (el) this.scrollEl = el; },
+      fileRef: el => { if (el) this.fileEl = el; },
+      onGridDown: e => this.onGridDown(e),
+      ghostShow: g ? "block" : "none",
+      ghostTop: g ? g.top + 8 : 0,
+      ghostLeft: g ? Math.min(g.x0, g.x1) - (g.originX || 0) : 0,
+      ghostW: g ? Math.abs(g.x1 - g.x0) : 0,
+      exportCsv: () => this.download(new Blob(["\ufeff" + this.csv()], { type: "text/csv;charset=utf-8" }), (this.state.title || "gantt") + ".csv"),
+      importCsv: () => this.fileEl && this.fileEl.click(),
+      onFile: e => {
+        const f = e.target.files && e.target.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = () => { const ts = this.parseCsv(String(r.result)); if (ts && ts.length) this.setState({ tasks: ts }); else alert("無法解析此 CSV，請使用『匯出 CSV』的欄位格式。"); };
+        r.readAsText(f, "utf-8"); e.target.value = "";
+      },
+      exportPng: () => { this.draw().toBlob(b => this.download(b, (this.state.title || "gantt") + ".png")); },
+      exportPdf: () => {
+        const url = this.draw().toDataURL("image/png");
+        const w = window.open("", "_blank");
+        if (!w) return;
+        w.document.write('<html><head><title>' + this.state.title + '</title><style>@page{size:A3 landscape;margin:10mm}body{margin:0;background:#fff}img{width:100%}</style></head><body><img src="' + url + '"></body></html>');
+        w.document.close();
+        w.onload = () => setTimeout(() => w.print(), 300);
+      },
+      syncLabel: this.state.sync === "live"
+        ? "即時協作 · 房號 " + this.room + " · " + (this.state.peers || 1) + " 人在線"
+        : this.state.sync === "off" ? "離線（僅存本機）" : "連線中…",
+      syncTip: this.state.sync === "live"
+        ? "此排程已同步到 Firebase，按『共用連結』把房號傳給同事即可共同編輯。"
+        : "目前僅儲存在這台電腦。",
+      share: () => {
+        const url = location.origin + location.pathname + location.search + (this.room ? "#r=" + this.room : "");
+        const done = () => alert("共用連結已複製：\n" + url + "\n\n同事開啟後即可與你同步編輯同一份排程。");
+        if (navigator.clipboard) navigator.clipboard.writeText(url).then(done, done); else done();
+      },
+    };
+  }
+}
+
+</script>
+</body>
+</html>
